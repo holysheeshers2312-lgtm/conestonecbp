@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { mailHref, site, telHref } from "@/data/site";
 
 export function Footer() {
@@ -14,13 +15,13 @@ export function Footer() {
           </p>
         </div>
         <div className="flex flex-col gap-2 text-sm">
-          <a href="#menu" className="text-ink/80 hover:text-brand-red">
+          <a href="/#menu" className="text-ink/80 hover:text-brand-red">
             Menu
           </a>
-          <a href="#reserve" className="text-ink/80 hover:text-brand-red">
+          <a href="/#reserve" className="text-ink/80 hover:text-brand-red">
             Reserve a table
           </a>
-          <a href="#contact" className="text-ink/80 hover:text-brand-red">
+          <a href="/#contact" className="text-ink/80 hover:text-brand-red">
             Contact us
           </a>
           <a
@@ -37,10 +38,20 @@ export function Footer() {
           </a>
         </div>
       </div>
-      <p className="mx-auto mt-10 max-w-6xl px-5 text-xs text-muted md:px-8">
-        © 2026 {site.name}. Menu content from the restaurant booklet.
-        Placeholder photography is labeled until venue photos are provided.
-      </p>
+      <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-3 px-5 text-xs text-muted md:flex-row md:items-center md:justify-between md:px-8">
+        <p>
+          © 2026 {site.name}. Menu content from the restaurant booklet.
+          Placeholder photography is labeled until venue photos are provided.
+        </p>
+        <p className="flex flex-wrap gap-x-4 gap-y-1">
+          <Link href="/privacy" className="hover:text-brand-red">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="hover:text-brand-red">
+            Terms of Use
+          </Link>
+        </p>
+      </div>
     </footer>
   );
 }

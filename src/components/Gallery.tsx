@@ -1,80 +1,81 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
+import ScrollStack, { ScrollStackItem } from "@/components/ScrollStack";
+import { SectionLabel } from "@/components/SectionLabel";
+import { SectionTitle } from "@/components/SectionTitle";
 
 const shots = [
   {
-    src: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=1000&q=80",
+    src: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=1200&q=80",
     alt: "Placeholder: Indian curry dish. Replace with ConeStone photo.",
+    label: "Curry & rice",
   },
   {
-    src: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1000&q=80",
+    src: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=80",
     alt: "Placeholder: samosas. Replace with ConeStone photo.",
+    label: "Snacks",
   },
   {
-    src: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1000&q=80",
+    src: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80",
     alt: "Placeholder: coffee. Replace with ConeStone photo.",
+    label: "Hot drinks",
   },
 ];
 
 export function Gallery() {
-  const root = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const ctx = gsap.context(() => {
-      if (reduced) return;
-      gsap.from(".gallery-shot", {
-        opacity: 0,
-        clipPath: "inset(8% 8% 8% 8%)",
-        duration: 0.9,
-        stagger: 0.12,
-        ease: "power2.out",
-        scrollTrigger: { trigger: root.current, start: "top 78%" },
-      });
-    }, root);
-    return () => ctx.revert();
-  }, []);
-
   return (
     <section
-      ref={root}
-      className="overflow-hidden py-20 md:py-28"
+      className="border-t border-[color:var(--line)] py-20 md:py-28"
       aria-labelledby="gallery-heading"
     >
       <div className="mx-auto max-w-6xl px-5 md:px-8">
-        <span className="brush-banner">Atmosphere</span>
-        <h2
-          id="gallery-heading"
-          className="mt-6 font-display text-3xl font-semibold text-ink md:text-5xl"
-        >
-          Food mood board
-        </h2>
+        <SectionLabel>Atmosphere</SectionLabel>
+        <SectionTitle id="gallery-heading">Food mood board</SectionTitle>
         <p className="mt-4 max-w-lg text-sm text-muted">
           Licensed placeholder images only. Swap these for real ConeStone
-          photography when available.
+          photography when available. Scroll to stack the shots.
         </p>
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
+      </div>
+
+      {/* Do not put overflow:hidden on this section — it kills position:sticky */}
+      <div className="mt-10 md:mt-14">
+        <ScrollStack
+          useWindowScroll
+          smoothScroll={false}
+          className="mx-auto max-w-3xl"
+          itemDistance={220}
+          itemStackDistance={32}
+          stackPosition="12%"
+          itemScale={0.045}
+          baseScale={0.88}
+          dimAmount={0.28}
+          blurAmount={0}
+          holdDistance={240}
+        >
           {shots.map((shot) => (
-            <figure
+            <ScrollStackItem
               key={shot.src}
-              className="gallery-shot group relative aspect-[4/5] overflow-hidden border border-[color:var(--line)] bg-cream-deep"
+              itemClassName="!h-[min(72vh,30rem)] !rounded-[1.75rem] !p-0 overflow-hidden border border-[color:var(--line)] !bg-cream-deep !text-ink"
+              style={{
+                background: "var(--cream-deep)",
+                color: "var(--ink)",
+              }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={shot.src}
-                alt={shot.alt}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
-              />
-              <figcaption className="sr-only">{shot.alt}</figcaption>
-            </figure>
+              <figure className="relative h-full w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={shot.src}
+                  alt={shot.alt}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+                <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-6 pb-5 pt-16 font-display text-xl text-white md:text-2xl">
+                  {shot.label}
+                </figcaption>
+              </figure>
+            </ScrollStackItem>
           ))}
-        </div>
+        </ScrollStack>
       </div>
     </section>
   );

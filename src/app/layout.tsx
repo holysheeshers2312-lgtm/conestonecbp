@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 import { site } from "@/data/site";
+import { BackToTop } from "@/components/BackToTop";
 import { ThemeScript } from "@/components/ThemeScript";
 
 const fraunces = Fraunces({
@@ -17,10 +18,16 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: `${site.name} | ${site.kitchenBrand} · Changi Business Park`,
+  title: {
+    default: `${site.name} | ${site.kitchenBrand} · Changi Business Park`,
+    template: `%s | ${site.name}`,
+  },
   description:
-    "ConeStone CBP and Amma Kitchen in Changi Business Park. Traditional Andhra cooking, tiffins, chaat, snacks, and drinks.",
+    "ConeStone CBP and Amma Kitchen in Changi Business Park. Traditional Andhra cooking, tiffins, chaat, snacks, catering, and drinks.",
   metadataBase: new URL(site.domain),
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: `${site.name} | Traditional Cooking`,
     description:
@@ -29,6 +36,25 @@ export const metadata: Metadata = {
     siteName: site.name,
     locale: "en_SG",
     type: "website",
+    images: [
+      {
+        url: "/images/hero-food.jpg",
+        width: 1600,
+        height: 900,
+        alt: `${site.name} food`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${site.name} | ${site.kitchenBrand}`,
+    description:
+      "Andhra kitchen and bar at Changi Business Park. Menu, catering, and table requests.",
+    images: ["/images/hero-food.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
@@ -48,6 +74,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         suppressHydrationWarning
       >
         {children}
+        <BackToTop />
       </body>
     </html>
   );

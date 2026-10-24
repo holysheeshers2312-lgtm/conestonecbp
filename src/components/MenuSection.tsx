@@ -1,40 +1,98 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { formatPrice, menuCategories } from "@/data/menu";
+import { formatPrice, menuCategories, type MenuItem } from "@/data/menu";
+import AnimatedList, { type AnimatedListItem } from "@/components/AnimatedList";
+import JellyRadio from "@/components/JellyRadio";
+import {
+  MenuSortControl,
+  type MenuSortMode,
+} from "@/components/MenuSortControl";
+import { SectionLabel } from "@/components/SectionLabel";
+import { SectionTitle } from "@/components/SectionTitle";
 
 gsap.registerPlugin(ScrollTrigger);
 
 type Filter = "all" | "food" | "drinks";
+type SiteTheme = "light" | "dark";
 
-export function MenuSection() {
-  const root = useRef<HTMLElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [activeId, setActiveId] = useState(menuCategories[0]?.id ?? "");
+const FILTER_ITEMS = [
+  { value: "all", label: "All" },
+  { value: "food", label: "Food" },
+  { value: "drinks", label: "Drinks" },
+];
 
-  const visible = useMemo(() => {
-    if (filter === "all") return menuCategories;
-    return menuCategories.filter((c) => c.group === filter);
-  }, [filter]);
+function readSiteTheme(): SiteTheme {
+  if (typeof document === "undefined") return "light";
+  return document.documentElement.getAttribute("data-theme") === "dark"
+    ? "dark"
+    : "light";
+}
 
-  const active = visible.find((c) => c.id === activeId) ?? visible[0];
+function lowestPrice(item: MenuItem): number | null {
+  let min: number | null = null;
+  for (const price of item.prices) {
+    if (!Number.isFinite(price.amount)) continue;
+    if (min === null || price.amount < min) min = price.amount;
+  }
+  return min;
+}
 
-  useEffect(() => {
-    if (!visible.some((c) => c.id === activeId) && visible[0]) {
-      setActiveId(visible[0].id);
-    }
-  }, [visible, activeId]);
+function sortMenuItems(items: MenuItem[], mode: MenuSortMode): MenuItem[] {
+  if (mode === "default") return items;
+
+  const copy = [...items];
+
+  if (mode === "name-asc" || mode === "name-desc") {
+    copy.sort((a, b) => {
+      const cmp = a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base",
+      });
+      return mode === "name-asc" ? cmp : -cmp;
+    });
+    return copy;
+  }
+
+  copy.sort((a, b) => {
+    const aPrice = lowestPrice(a);
+    const bPrice = lowestPrice(b);
+    if (aPrice === null && bPrice === null) return 0;
+    if (aPrice === null) return 1;
+    if (bPrice === null) return -1;
+    return mode === "price-asc" ? aPrice - bPrice : bPrice - aPrice;
+  });
+  return copy;
+}
+
+type MenuItemsBlockProps = {
+  title: string;
+  blurb?: string;
+  items: MenuItem[];
+};
+
+/** Remount via `key` when category/sort changes; mount-only GSAP (stable empty deps). */
+function MenuItemsBlock({ title, blurb, items }: MenuItemsBlockProps) {
+  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const list = listRef.current;
+    if (reduced || !list) return;
+
+    const rows = list.querySelectorAll(".menu-row");
+    if (!rows.length) return;
+
     const ctx = gsap.context(() => {
-      if (reduced || !listRef.current) return;
-      const items = listRef.current.querySelectorAll(".menu-row");
       gsap.fromTo(
-        items,
+        rows,
         { opacity: 0, y: 18 },
         {
           opacity: 1,
@@ -44,9 +102,103 @@ export function MenuSection() {
           ease: "power2.out",
         },
       );
-    }, root);
+    }, list);
+
     return () => ctx.revert();
-  }, [active?.id]);
+  }, []);
+
+  return (
+    <>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-ink/10 pb-4">
+        <h3 className="font-display text-2xl text-ink md:text-3xl">{title}</h3>
+        {blurb ? <p className="text-sm text-muted">{blurb}</p> : null}
+      </div>
+      <ul ref={listRef} className="divide-y divide-ink/10">
+        {items.map((item) => (
+          <li
+            key={item.id}
+            className="menu-row flex flex-col gap-2 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8"
+          >
+            <div className="min-w-0">
+              <h4 className="font-display text-lg text-ink">{item.name}</h4>
+              {item.description ? (
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  {item.description}
+                </p>
+              ) : null}
+              {item.note ? (
+                <p className="mt-1 text-xs text-gold">{item.note}</p>
+              ) : null}
+            </div>
+            <div className="price shrink-0 text-right text-base sm:pt-1">
+              {item.prices.map((price, i) => (
+                <span key={`${item.id}-${price.label}-${i}`}>
+                  {i > 0 ? " / " : null}
+                  {price.label ? (
+                    <span className="mr-1 text-xs font-sans font-medium uppercase tracking-wide text-muted">
+                      {price.label}
+                    </span>
+                  ) : null}
+                  {formatPrice(price.amount)}
+                </span>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+export function MenuSection() {
+  const root = useRef<HTMLElement>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [activeId, setActiveId] = useState(menuCategories[0]?.id ?? "");
+  const [siteTheme, setSiteTheme] = useState<SiteTheme>("light");
+  const [sortMode, setSortMode] = useState<MenuSortMode>("default");
+
+  const visible = useMemo(() => {
+    if (filter === "all") return menuCategories;
+    return menuCategories.filter((c) => c.group === filter);
+  }, [filter]);
+
+  const active = visible.find((c) => c.id === activeId) ?? visible[0];
+  const selectedIndex = Math.max(
+    0,
+    visible.findIndex((c) => c.id === (active?.id ?? activeId)),
+  );
+
+  const sortedItems = useMemo(
+    () => (active ? sortMenuItems(active.items, sortMode) : []),
+    [active, sortMode],
+  );
+
+  const categoryItems = useMemo<AnimatedListItem[]>(
+    () =>
+      visible.map((cat) => ({
+        id: cat.id,
+        title: cat.title,
+        description: `${cat.items.length} item${cat.items.length === 1 ? "" : "s"}`,
+        meta: cat.group === "food" ? "Food" : "Drink",
+      })),
+    [visible],
+  );
+
+  useEffect(() => {
+    setSiteTheme(readSiteTheme());
+    const mo = new MutationObserver(() => setSiteTheme(readSiteTheme()));
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => mo.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible.some((c) => c.id === activeId) && visible[0]) {
+      setActiveId(visible[0].id);
+    }
+  }, [visible, activeId]);
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -71,121 +223,91 @@ export function MenuSection() {
       aria-labelledby="menu-heading"
     >
       <div className="menu-shell mx-auto max-w-6xl px-5 md:px-8">
-        <span className="brush-banner">Full menu</span>
-        <h2
-          id="menu-heading"
-          className="mt-6 font-display text-3xl font-semibold text-ink md:text-5xl"
-        >
-          Everything from the booklet
-        </h2>
+        <SectionLabel>Full menu</SectionLabel>
+        <SectionTitle id="menu-heading">Everything from the booklet</SectionTitle>
         <p className="mt-4 max-w-xl text-muted">
           Names, descriptions, and prices match the Cone Stone menu PDF.
         </p>
 
-        <div
-          className="mt-8 flex flex-wrap gap-2"
-          role="group"
-          aria-label="Menu filter"
-        >
-          {(
-            [
-              ["all", "All"],
-              ["food", "Food"],
-              ["drinks", "Drinks"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setFilter(id)}
-              className={`min-h-11 px-4 text-sm font-semibold transition-colors ${
-                filter === id
-                  ? "bg-ink text-paper"
-                  : "border border-[color:var(--line)] text-ink hover:border-ink/50"
-              }`}
-              aria-pressed={filter === id}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="mt-8 flex items-center gap-3">
+          <div className="min-w-0 flex-1 overflow-x-auto -ml-2">
+            <JellyRadio
+              items={FILTER_ITEMS}
+              value={filter}
+              onChange={(value) => setFilter(value as Filter)}
+              ariaLabel="Menu filter"
+              size="lg"
+              gap={10}
+              radius={999}
+              swell={0.14}
+              barge={5}
+              shrink={0.04}
+              jelly={0.85}
+              bounce={0.28}
+              chipColor="color-mix(in srgb, var(--ink) 8%, var(--elevated))"
+              activeColor="var(--brand-red)"
+              textColor="var(--ink)"
+              activeTextColor="var(--on-brand)"
+            />
+          </div>
+          <MenuSortControl value={sortMode} onChange={setSortMode} />
         </div>
 
-        <div className="mt-10 grid gap-10 lg:grid-cols-[240px_1fr]">
-          <nav
-            className="flex gap-2 overflow-x-auto pb-2 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible lg:pb-0"
-            aria-label="Menu categories"
-          >
-            {visible.map((cat) => {
-              const isActive = cat.id === active?.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setActiveId(cat.id)}
-                  className={`relative min-h-11 shrink-0 px-3 text-left text-sm font-medium transition-colors lg:w-full ${
-                    isActive ? "text-brand-red" : "text-ink/70 hover:text-ink"
-                  }`}
-                  aria-current={isActive ? "true" : undefined}
-                >
-                  <span
-                    className={`absolute bottom-0 left-0 h-0.5 bg-gold transition-all duration-300 lg:top-0 lg:h-full lg:w-0.5 ${
-                      isActive ? "w-full lg:opacity-100" : "w-0 lg:opacity-0"
-                    }`}
-                    aria-hidden
-                  />
-                  <span className="lg:pl-3">{cat.title}</span>
-                </button>
-              );
-            })}
-          </nav>
+        <div className="mt-10 grid gap-8 lg:grid-cols-[280px_1fr] lg:gap-10">
+          <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+            <AnimatedList
+              key={filter}
+              items={categoryItems}
+              initialSelectedIndex={selectedIndex}
+              onItemSelect={(item) => {
+                if (item && typeof item === "object" && item.id != null) {
+                  setActiveId(String(item.id));
+                }
+              }}
+              selectOnHover={false}
+              enableArrowNavigation
+              animation="pop"
+              animateOnce={false}
+              stagger={0.045}
+              showGradients
+              fadeSize={48}
+              displayScrollbar={false}
+              frame
+              theme={siteTheme}
+              accentColor="var(--brand-red)"
+              radius={16}
+              gap={8}
+              width="100%"
+              maxHeight={420}
+              className="menu-category-list"
+              style={
+                (siteTheme === "light"
+                  ? {
+                      "--al-frame":
+                        "color-mix(in srgb, var(--ink) 5%, var(--elevated))",
+                      "--al-tile":
+                        "linear-gradient(180deg, color-mix(in srgb, var(--paper) 70%, white) 0%, var(--elevated) 100%)",
+                      "--al-ink": "var(--ink)",
+                      "--al-muted": "var(--quiet)",
+                    }
+                  : {
+                      "--al-frame":
+                        "color-mix(in srgb, var(--elevated) 88%, transparent)",
+                      "--al-ink": "var(--ink)",
+                      "--al-muted": "var(--quiet)",
+                    }) as unknown as CSSProperties
+              }
+            />
+          </div>
 
-          <div ref={listRef}>
+          <div>
             {active ? (
-              <>
-                <div className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-ink/10 pb-4">
-                  <h3 className="font-display text-2xl text-ink md:text-3xl">
-                    {active.title}
-                  </h3>
-                  {active.blurb ? (
-                    <p className="text-sm text-muted">{active.blurb}</p>
-                  ) : null}
-                </div>
-                <ul className="divide-y divide-ink/10">
-                  {active.items.map((item) => (
-                    <li
-                      key={item.id}
-                      className="menu-row flex flex-col gap-2 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8"
-                    >
-                      <div className="min-w-0">
-                        <h4 className="font-display text-lg text-ink">
-                          {item.name}
-                        </h4>
-                        {item.description ? (
-                          <p className="mt-1 text-sm leading-relaxed text-muted">
-                            {item.description}
-                          </p>
-                        ) : null}
-                        {item.note ? (
-                          <p className="mt-1 text-xs text-gold">{item.note}</p>
-                        ) : null}
-                      </div>
-                      <div className="price shrink-0 text-right text-base sm:pt-1">
-                        {item.prices.map((price, i) => (
-                          <span key={`${item.id}-${price.label}-${i}`}>
-                            {i > 0 ? " / " : null}
-                            {price.label ? (
-                              <span className="mr-1 text-xs font-sans font-medium uppercase tracking-wide text-muted">
-                                {price.label}
-                              </span>
-                            ) : null}
-                            {formatPrice(price.amount)}
-                          </span>
-                        ))}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </>
+              <MenuItemsBlock
+                key={`${active.id}:${sortMode}`}
+                title={active.title}
+                blurb={active.blurb}
+                items={sortedItems}
+              />
             ) : null}
           </div>
         </div>

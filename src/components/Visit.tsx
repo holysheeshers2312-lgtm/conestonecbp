@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { site, telHref } from "@/data/site";
+import { SectionLabel } from "@/components/SectionLabel";
+import { SectionTitle } from "@/components/SectionTitle";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -34,13 +36,13 @@ export function Visit() {
       aria-labelledby="visit-heading"
     >
       <div className="visit-block mx-auto max-w-6xl px-5 md:px-8">
-        <span className="brush-banner">Visit</span>
-        <h2
+        <SectionLabel>Visit</SectionLabel>
+        <SectionTitle
           id="visit-heading"
-          className="mt-6 font-display text-3xl font-semibold md:text-5xl"
+          className="!text-[color:var(--visit-ink)]"
         >
           Find us at Changi
-        </h2>
+        </SectionTitle>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-2">
           <div>

@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { mailHref, site, telHref } from "@/data/site";
+import { SectionLabel } from "@/components/SectionLabel";
+import { SectionTitle } from "@/components/SectionTitle";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -34,13 +36,8 @@ export function Contact() {
       aria-labelledby="contact-heading"
     >
       <div className="mx-auto max-w-6xl px-5 md:px-8">
-        <span className="brush-banner">Get in touch</span>
-        <h2
-          id="contact-heading"
-          className="mt-6 font-display text-3xl font-semibold text-ink md:text-5xl"
-        >
-          Contact us
-        </h2>
+        <SectionLabel>Get in touch</SectionLabel>
+        <SectionTitle id="contact-heading">Contact us</SectionTitle>
         <p className="mt-4 max-w-xl text-muted">
           Reach ConeStone CBP for bookings, catering, or general questions.
         </p>

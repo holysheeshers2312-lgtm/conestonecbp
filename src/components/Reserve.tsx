@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { site, telHref } from "@/data/site";
+import { SectionLabel } from "@/components/SectionLabel";
+import { SectionTitle } from "@/components/SectionTitle";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -65,13 +67,8 @@ export function Reserve() {
       aria-labelledby="reserve-heading"
     >
       <div className="reserve-panel mx-auto max-w-6xl px-5 md:px-8">
-        <span className="brush-banner">Reservations</span>
-        <h2
-          id="reserve-heading"
-          className="mt-6 font-display text-3xl font-semibold text-ink md:text-5xl"
-        >
-          Reserve a table
-        </h2>
+        <SectionLabel>Reservations</SectionLabel>
+        <SectionTitle id="reserve-heading">Reserve a table</SectionTitle>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
           Send a booking request and we will confirm with you. For larger
           parties, please call{" "}
