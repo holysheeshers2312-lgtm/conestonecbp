@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 import { site } from "@/data/site";
+import { BackToTop } from "@/components/BackToTop";
 import { ThemeScript } from "@/components/ThemeScript";
 
 const fraunces = Fraunces({
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         suppressHydrationWarning
       >
         {children}
+        <BackToTop />
       </body>
     </html>
   );
