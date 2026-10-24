@@ -280,9 +280,48 @@ body {
   }
 }
 
+/* Oval Contact us info pills */
+.contact-pill {
+  flex: 1;
+  display: block;
+  border-radius: 9999px;
+  background: var(--elevated);
+  border: 1px solid var(--line);
+  padding: 1.35rem 1.75rem;
+  text-align: center;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 6%, transparent);
+  animation: contact-float 2.6s ease-in-out infinite;
+  transition:
+    transform 0.3s var(--ease-out),
+    border-color 0.3s var(--ease-out),
+    box-shadow 0.3s var(--ease-out);
+}
+
+.contact-pill:nth-child(2) {
+  animation-delay: 0.35s;
+}
+
+.contact-pill:hover {
+  transform: translateY(-6px) scale(1.02);
+  border-color: color-mix(in srgb, var(--brand-red) 45%, var(--line));
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--brand-red) 18%, transparent);
+  animation-play-state: paused;
+}
+
+@keyframes contact-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn-contact,
-  .btn-contact::before {
+  .btn-contact::before,
+  .contact-pill {
     animation: none;
   }
 

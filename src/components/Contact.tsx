@@ -16,10 +16,10 @@ export function Contact() {
       if (reduced) return;
       gsap.from(".contact-card", {
         opacity: 0,
-        y: 28,
-        duration: 0.65,
-        stagger: 0.1,
+        duration: 0.7,
+        stagger: 0.12,
         ease: "power3.out",
+        clearProps: "opacity",
         scrollTrigger: { trigger: root.current, start: "top 80%" },
       });
     }, root);
@@ -48,7 +48,7 @@ export function Contact() {
         <div className="mt-12 flex flex-col gap-5 sm:flex-row sm:gap-6">
           <a
             href={telHref(site.primaryPhone.phone)}
-            className="contact-card contact-pill group"
+            className="contact-card contact-pill group flex-1 rounded-full border border-[color:var(--line)] bg-elevated px-7 py-5 text-center shadow-[0_8px_24px_rgba(42,31,24,0.08)]"
           >
             <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-muted">
               Mobile number
@@ -64,7 +64,10 @@ export function Contact() {
             </p>
           </a>
 
-          <a href={mailHref()} className="contact-card contact-pill group">
+          <a
+            href={mailHref()}
+            className="contact-card contact-pill group flex-1 rounded-full border border-[color:var(--line)] bg-elevated px-7 py-5 text-center shadow-[0_8px_24px_rgba(42,31,24,0.08)]"
+          >
             <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-muted">
               Email
             </p>

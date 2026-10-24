@@ -76,6 +76,13 @@ export function Nav() {
 
         <div className="flex items-center gap-2 lg:hidden">
           <ThemeToggle />
+          <a
+            href="#contact"
+            className="btn-contact inline-flex min-h-9 items-center px-4 text-xs font-semibold"
+            onClick={() => setOpen(false)}
+          >
+            Contact us
+          </a>
           <button
             type="button"
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm hover:bg-ink/5"
