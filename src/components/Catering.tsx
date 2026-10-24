@@ -10,6 +10,8 @@ import {
   cateringTerms,
   formatPrice,
 } from "@/data/menu";
+import { SectionLabel } from "@/components/SectionLabel";
+import { SectionTitle } from "@/components/SectionTitle";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -40,13 +42,8 @@ export function Catering() {
       aria-labelledby="catering-heading"
     >
       <div className="mx-auto max-w-6xl px-5 md:px-8">
-        <span className="brush-banner">Amma Kitchen</span>
-        <h2
-          id="catering-heading"
-          className="mt-6 font-display text-3xl font-semibold text-ink md:text-5xl"
-        >
-          Catering menu
-        </h2>
+        <SectionLabel>Amma Kitchen</SectionLabel>
+        <SectionTitle id="catering-heading">Catering menu</SectionTitle>
         <p className="mt-4 max-w-xl text-muted">
           Per-head packages from the booklet. Contact us to book.
         </p>

@@ -4,16 +4,35 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { formatPrice, menuCategories } from "@/data/menu";
+import AnimatedList, { type AnimatedListItem } from "@/components/AnimatedList";
+import JellyRadio from "@/components/JellyRadio";
+import { SectionLabel } from "@/components/SectionLabel";
+import { SectionTitle } from "@/components/SectionTitle";
 
 gsap.registerPlugin(ScrollTrigger);
 
 type Filter = "all" | "food" | "drinks";
+type SiteTheme = "light" | "dark";
+
+const FILTER_ITEMS = [
+  { value: "all", label: "All" },
+  { value: "food", label: "Food" },
+  { value: "drinks", label: "Drinks" },
+];
+
+function readSiteTheme(): SiteTheme {
+  if (typeof document === "undefined") return "light";
+  return document.documentElement.getAttribute("data-theme") === "dark"
+    ? "dark"
+    : "light";
+}
 
 export function MenuSection() {
   const root = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [activeId, setActiveId] = useState(menuCategories[0]?.id ?? "");
+  const [siteTheme, setSiteTheme] = useState<SiteTheme>("light");
 
   const visible = useMemo(() => {
     if (filter === "all") return menuCategories;
@@ -21,6 +40,31 @@ export function MenuSection() {
   }, [filter]);
 
   const active = visible.find((c) => c.id === activeId) ?? visible[0];
+  const selectedIndex = Math.max(
+    0,
+    visible.findIndex((c) => c.id === (active?.id ?? activeId)),
+  );
+
+  const categoryItems = useMemo<AnimatedListItem[]>(
+    () =>
+      visible.map((cat) => ({
+        id: cat.id,
+        title: cat.title,
+        description: `${cat.items.length} item${cat.items.length === 1 ? "" : "s"}`,
+        meta: cat.group === "food" ? "Food" : "Drink",
+      })),
+    [visible],
+  );
+
+  useEffect(() => {
+    setSiteTheme(readSiteTheme());
+    const mo = new MutationObserver(() => setSiteTheme(readSiteTheme()));
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => mo.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!visible.some((c) => c.id === activeId) && visible[0]) {
@@ -71,73 +115,79 @@ export function MenuSection() {
       aria-labelledby="menu-heading"
     >
       <div className="menu-shell mx-auto max-w-6xl px-5 md:px-8">
-        <span className="brush-banner">Full menu</span>
-        <h2
-          id="menu-heading"
-          className="mt-6 font-display text-3xl font-semibold text-ink md:text-5xl"
-        >
-          Everything from the booklet
-        </h2>
+        <SectionLabel>Full menu</SectionLabel>
+        <SectionTitle id="menu-heading">Everything from the booklet</SectionTitle>
         <p className="mt-4 max-w-xl text-muted">
           Names, descriptions, and prices match the Cone Stone menu PDF.
         </p>
 
-        <div
-          className="mt-8 flex flex-wrap gap-2"
-          role="group"
-          aria-label="Menu filter"
-        >
-          {(
-            [
-              ["all", "All"],
-              ["food", "Food"],
-              ["drinks", "Drinks"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setFilter(id)}
-              className={`min-h-11 px-4 text-sm font-semibold transition-colors ${
-                filter === id
-                  ? "bg-ink text-paper"
-                  : "border border-[color:var(--line)] text-ink hover:border-ink/50"
-              }`}
-              aria-pressed={filter === id}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="mt-8 -ml-2 overflow-x-auto">
+          <JellyRadio
+            items={FILTER_ITEMS}
+            value={filter}
+            onChange={(value) => setFilter(value as Filter)}
+            ariaLabel="Menu filter"
+            size="lg"
+            gap={10}
+            radius={999}
+            swell={0.14}
+            barge={5}
+            shrink={0.04}
+            jelly={0.85}
+            bounce={0.28}
+            chipColor="color-mix(in srgb, var(--ink) 8%, var(--elevated))"
+            activeColor="var(--brand-red)"
+            textColor="var(--ink)"
+            activeTextColor="var(--on-brand)"
+          />
         </div>
 
-        <div className="mt-10 grid gap-10 lg:grid-cols-[240px_1fr]">
-          <nav
-            className="flex gap-2 overflow-x-auto pb-2 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible lg:pb-0"
-            aria-label="Menu categories"
-          >
-            {visible.map((cat) => {
-              const isActive = cat.id === active?.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setActiveId(cat.id)}
-                  className={`relative min-h-11 shrink-0 px-3 text-left text-sm font-medium transition-colors lg:w-full ${
-                    isActive ? "text-brand-red" : "text-ink/70 hover:text-ink"
-                  }`}
-                  aria-current={isActive ? "true" : undefined}
-                >
-                  <span
-                    className={`absolute bottom-0 left-0 h-0.5 bg-gold transition-all duration-300 lg:top-0 lg:h-full lg:w-0.5 ${
-                      isActive ? "w-full lg:opacity-100" : "w-0 lg:opacity-0"
-                    }`}
-                    aria-hidden
-                  />
-                  <span className="lg:pl-3">{cat.title}</span>
-                </button>
-              );
-            })}
-          </nav>
+        <div className="mt-10 grid gap-8 lg:grid-cols-[280px_1fr] lg:gap-10">
+          <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+            <AnimatedList
+              key={filter}
+              items={categoryItems}
+              initialSelectedIndex={selectedIndex}
+              onItemSelect={(item) => {
+                if (item && typeof item === "object" && item.id != null) {
+                  setActiveId(String(item.id));
+                }
+              }}
+              selectOnHover={false}
+              enableArrowNavigation
+              animation="pop"
+              animateOnce={false}
+              stagger={0.045}
+              showGradients
+              fadeSize={48}
+              displayScrollbar={false}
+              frame
+              theme={siteTheme}
+              accentColor="var(--brand-red)"
+              radius={16}
+              gap={8}
+              width="100%"
+              maxHeight={420}
+              className="menu-category-list"
+              style={
+                siteTheme === "light"
+                  ? {
+                      "--al-frame":
+                        "color-mix(in srgb, var(--ink) 5%, var(--elevated))",
+                      "--al-tile":
+                        "linear-gradient(180deg, color-mix(in srgb, var(--paper) 70%, white) 0%, var(--elevated) 100%)",
+                      "--al-ink": "var(--ink)",
+                      "--al-muted": "var(--quiet)",
+                    }
+                  : {
+                      "--al-frame":
+                        "color-mix(in srgb, var(--elevated) 88%, transparent)",
+                      "--al-ink": "var(--ink)",
+                      "--al-muted": "var(--quiet)",
+                    }
+              }
+            />
+          </div>
 
           <div ref={listRef}>
             {active ? (

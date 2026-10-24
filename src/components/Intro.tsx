@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { site } from "@/data/site";
+import { SectionLabel } from "@/components/SectionLabel";
+import { SectionTitle } from "@/components/SectionTitle";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -14,7 +16,7 @@ export function Intro() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const ctx = gsap.context(() => {
       if (reduced) return;
-      gsap.from(".intro-copy > *", {
+      gsap.from(".intro-copy > p", {
         opacity: 0,
         y: 28,
         duration: 0.7,
@@ -41,10 +43,8 @@ export function Intro() {
     >
       <div className="mx-auto grid max-w-6xl gap-12 px-5 md:grid-cols-12 md:gap-16 md:px-8">
         <div className="intro-copy md:col-span-7">
-          <span className="brush-banner">About</span>
-          <h2 className="mt-6 font-display text-3xl font-semibold text-ink md:text-5xl">
-            Two names, one kitchen
-          </h2>
+          <SectionLabel>About</SectionLabel>
+          <SectionTitle>Two names, one kitchen</SectionTitle>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-ink/80 md:text-lg">
             <strong className="font-semibold text-brand-red">{site.name}</strong>{" "}
             is the Changi Business Park spot for tea, coffee, juice, chaat,

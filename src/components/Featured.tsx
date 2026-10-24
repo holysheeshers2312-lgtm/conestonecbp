@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { formatPrice, getFeaturedDishes } from "@/data/menu";
+import { SectionLabel } from "@/components/SectionLabel";
+import { SectionTitle } from "@/components/SectionTitle";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -30,13 +32,8 @@ export function Featured() {
   return (
     <section ref={root} className="py-20 md:py-28" aria-labelledby="featured-heading">
       <div className="mx-auto max-w-6xl px-5 md:px-8">
-        <span className="brush-banner">From the booklet</span>
-        <h2
-          id="featured-heading"
-          className="mt-6 font-display text-3xl font-semibold text-ink md:text-5xl"
-        >
-          A few dishes to start with
-        </h2>
+        <SectionLabel>From the booklet</SectionLabel>
+        <SectionTitle id="featured-heading">A few dishes to start with</SectionTitle>
         <p className="mt-4 max-w-lg text-muted">
           Selected for the menu write-ups, not labeled as bestsellers.
         </p>
