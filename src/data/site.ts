@@ -30,3 +30,10 @@ export function telHref(phone: string) {
 export function mailHref(email: string = site.email) {
   return `mailto:${email}`;
 }
+
+/** WhatsApp chat link (Singapore +65). Optional prefilled message. */
+export function whatsappHref(phone: string, message?: string) {
+  const base = `https://wa.me/65${phone}`;
+  if (!message) return base;
+  return `${base}?text=${encodeURIComponent(message)}`;
+}

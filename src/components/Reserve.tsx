@@ -3,11 +3,13 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { site, telHref } from "@/data/site";
+import { site, telHref, whatsappHref } from "@/data/site";
 import { SectionLabel } from "@/components/SectionLabel";
 import { SectionTitle } from "@/components/SectionTitle";
 
 gsap.registerPlugin(ScrollTrigger);
+
+type SubmitState = "idle" | "loading" | "success" | "error";
 
 export function Reserve() {
   const root = useRef<HTMLElement>(null);
@@ -17,7 +19,9 @@ export function Reserve() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
-  const [sentHint, setSentHint] = useState(false);
+  const [status, setStatus] = useState<SubmitState>("idle");
+  const [message, setMessage] = useState("");
+  const [requestId, setRequestId] = useState("");
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -35,29 +39,66 @@ export function Reserve() {
     return () => ctx.revert();
   }, []);
 
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const subject = encodeURIComponent(
-      `Table reservation request — ${site.name}`,
-    );
-    const body = encodeURIComponent(
-      [
-        `Name: ${name}`,
-        `Phone: ${phone}`,
-        `Email: ${email}`,
-        `Date: ${date || "(not selected)"}`,
-        `Guests: ${guests}`,
-        notes ? `Notes: ${notes}` : "",
-        "",
-        "Sent from the ConeStone CBP website reservation form.",
-        "Please confirm availability with the guest.",
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    );
-    window.location.href = `mailto:${site.email}?subject=${subject}&body=${body}`;
-    setSentHint(true);
+    setStatus("loading");
+    setMessage("");
+    setRequestId("");
+
+    try {
+      const response = await fetch("/api/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, guests, name, phone, email, notes }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            error?: string;
+            id?: string;
+            code?: string;
+            capacityWarning?: boolean;
+            duplicate?: boolean;
+          }
+        | null;
+
+      if (!response.ok || !payload?.ok) {
+        setStatus("error");
+        setMessage(
+          payload?.error ||
+            "Something went wrong. Please call or WhatsApp us instead.",
+        );
+        return;
+      }
+
+      setStatus("success");
+      setRequestId(payload.code || payload.id || "");
+      setMessage(
+        payload.duplicate
+          ? "You already have an open request for this date. Use your booking code to check status."
+          : payload.capacityWarning
+            ? "Request received. That day is filling up — we will confirm or waitlist you shortly. Check WhatsApp for your code."
+            : "Reservation submitted. Please wait until we confirm. We sent your booking code on WhatsApp.",
+      );
+      setDate("");
+      setGuests("2");
+      setName("");
+      setPhone("");
+      setEmail("");
+      setNotes("");
+    } catch {
+      setStatus("error");
+      setMessage(
+        "Could not reach the server. Please call or WhatsApp us to book.",
+      );
+    }
   }
+
+  const whatsappBook = whatsappHref(
+    site.primaryPhone.phone,
+    `Hi ${site.name}, I would like to reserve a table.`,
+  );
 
   return (
     <section
@@ -77,8 +118,8 @@ export function Reserve() {
             className="font-semibold text-brand-red hover:underline"
           >
             +65 {site.primaryPhone.display}
-          </a>{" "}
-          or email{" "}
+          </a>
+          , WhatsApp, or email{" "}
           <a
             href={`mailto:${site.email}`}
             className="font-semibold text-brand-red hover:underline"
@@ -100,7 +141,8 @@ export function Reserve() {
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold"
+                disabled={status === "loading"}
+                className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold disabled:opacity-60"
               />
             </label>
 
@@ -109,7 +151,8 @@ export function Reserve() {
               <select
                 value={guests}
                 onChange={(e) => setGuests(e.target.value)}
-                className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold"
+                disabled={status === "loading"}
+                className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold disabled:opacity-60"
               >
                 {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
                   <option key={n} value={String(n)}>
@@ -128,7 +171,8 @@ export function Reserve() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold"
+                  disabled={status === "loading"}
+                  className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold disabled:opacity-60"
                 />
               </label>
               <label className="grid gap-2 text-sm">
@@ -139,7 +183,8 @@ export function Reserve() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+65"
-                  className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold"
+                  disabled={status === "loading"}
+                  className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold disabled:opacity-60"
                 />
               </label>
             </div>
@@ -151,7 +196,8 @@ export function Reserve() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold"
+                disabled={status === "loading"}
+                className="min-h-12 border border-[color:var(--line)] bg-paper px-3 text-ink outline-none focus:border-gold disabled:opacity-60"
               />
             </label>
 
@@ -161,28 +207,50 @@ export function Reserve() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
-                className="border border-[color:var(--line)] bg-paper px-3 py-3 text-ink outline-none focus:border-gold"
+                disabled={status === "loading"}
+                className="border border-[color:var(--line)] bg-paper px-3 py-3 text-ink outline-none focus:border-gold disabled:opacity-60"
               />
             </label>
 
             <button
               type="submit"
-              className="btn-brand inline-flex min-h-12 items-center justify-center px-6 text-sm font-bold uppercase tracking-wide transition-transform hover:scale-[1.01]"
+              disabled={status === "loading"}
+              className="btn-brand inline-flex min-h-12 items-center justify-center px-6 text-sm font-bold uppercase tracking-wide transition-transform hover:scale-[1.01] disabled:opacity-70"
             >
-              Submit request
+              {status === "loading" ? "Sending…" : "Submit request"}
             </button>
 
-            {sentHint ? (
-              <p className="text-sm text-muted">
-                Your email app should open with the request. If it does not, write
-                to {site.email} or call +65 {site.primaryPhone.display}.
+            {status === "success" ? (
+              <div className="text-sm text-brand-red" role="status">
+                <p>{message}</p>
+                {requestId ? (
+                  <p className="mt-2 font-mono text-base font-semibold tracking-wide text-ink">
+                    Code: {requestId}
+                  </p>
+                ) : null}
+                {requestId ? (
+                  <a
+                    href={`/reserve/status?code=${encodeURIComponent(requestId)}`}
+                    className="mt-2 inline-block font-semibold text-brand-red underline-offset-2 hover:underline"
+                  >
+                    Check status anytime
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
+
+            {status === "error" ? (
+              <p className="text-sm text-brand-red" role="alert">
+                {message}
               </p>
-            ) : (
+            ) : null}
+
+            {status === "idle" || status === "loading" ? (
               <p className="text-xs text-muted">
-                This sends a request by email. It does not confirm a table until
-                we reply.
+                This sends a request — not a confirmed table. You will get a
+                booking code on WhatsApp and can check status on any device.
               </p>
-            )}
+            ) : null}
           </form>
 
           <aside className="flex flex-col justify-between gap-8 border border-[color:var(--line)] bg-surface-dark p-6 text-[#f3ede3] md:p-8">
@@ -202,6 +270,19 @@ export function Reserve() {
                     className="font-display text-xl text-gold hover:opacity-90"
                   >
                     +65 {site.primaryPhone.display}
+                  </a>
+                </li>
+                <li>
+                  <span className="block text-[0.65rem] uppercase tracking-[0.18em] text-[#f3ede3]/55">
+                    WhatsApp
+                  </span>
+                  <a
+                    href={whatsappBook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-display text-xl text-gold hover:opacity-90"
+                  >
+                    Message us
                   </a>
                 </li>
                 <li>
