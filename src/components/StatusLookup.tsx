@@ -111,7 +111,7 @@ export function StatusLookup() {
               : "border border-[#d9cfc2] bg-white"
           }`}
         >
-          Booking code
+          Reservation ID
         </button>
         <button
           type="button"
@@ -129,7 +129,7 @@ export function StatusLookup() {
       <form onSubmit={onSubmit} className="mt-5 grid gap-4">
         {mode === "code" ? (
           <label className="grid gap-2 text-sm">
-            <span className="font-semibold">Code (e.g. RSV-7K2M)</span>
+            <span className="font-semibold">Reservation ID (e.g. CS-261027-003)</span>
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}

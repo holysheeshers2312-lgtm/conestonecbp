@@ -1,11 +1,30 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
+import type { AdminSortMode, AdminStatusFilter } from "@/data/booking";
 import {
   dayCapacity,
   isBookingStoreReady,
   listReservations,
   publicBookingView,
 } from "@/lib/bookings";
+
+const STATUS_FILTERS = new Set<AdminStatusFilter>([
+  "needs",
+  "submitted",
+  "confirmed",
+  "waitlist",
+  "declined",
+  "cancelled",
+  "all",
+]);
+
+const SORT_MODES = new Set<AdminSortMode>([
+  "date-asc",
+  "date-desc",
+  "newest",
+  "guests-desc",
+  "name-asc",
+]);
 
 export async function GET(request: Request) {
   const session = await getAdminSession();
@@ -24,27 +43,31 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const tab = (searchParams.get("tab") || "needs") as
-    | "needs"
-    | "upcoming"
-    | "today"
-    | "all";
+  const statusParam = (searchParams.get("status") ||
+    searchParams.get("tab") ||
+    "needs") as AdminStatusFilter;
+  const sortParam = (searchParams.get("sort") || "date-asc") as AdminSortMode;
+  const dateParam = (searchParams.get("date") || "").trim();
 
-  const rows = await listReservations({ tab });
+  const status = STATUS_FILTERS.has(statusParam) ? statusParam : "needs";
+  const sort = SORT_MODES.has(sortParam) ? sortParam : "date-asc";
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : undefined;
+
+  const { rows, counts } = await listReservations({ status, sort, date });
+
   const today = new Date().toLocaleDateString("en-CA", {
     timeZone: "Asia/Singapore",
   });
-  const capacity = await dayCapacity(today);
-
-  // Capacity for unique dates in the list
-  const dates = [...new Set(rows.map((r) => r.date))];
-  const capacities = await Promise.all(dates.map((d) => dayCapacity(d)));
+  const capacityDate = date || today;
+  const capacity = await dayCapacity(capacityDate);
 
   return NextResponse.json({
     ok: true,
     staff: session,
     todayCapacity: capacity,
-    capacities,
+    dayCapacity: capacity,
+    counts,
+    filter: { status, sort, date: capacityDate },
     reservations: rows.map(publicBookingView),
   });
 }

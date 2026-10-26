@@ -92,7 +92,7 @@ function staffAlertMessage(
   return [
     `*New table request — ${site.name}*`,
     "",
-    `Code: ${code}`,
+    `Reservation ID: ${code}`,
     `Name: ${data.name}`,
     `Phone: ${data.phone}`,
     `Email: ${data.email}`,
@@ -114,7 +114,7 @@ function guestSubmittedMessage(data: ReservationInput, code: string) {
     `*${site.name}* — reservation received`,
     "",
     `Hi ${data.name}, we got your table request.`,
-    `Code: *${code}*`,
+    `Reservation ID: *${code}*`,
     `Date: ${data.date}`,
     `Guests: ${data.guests}`,
     "",
@@ -136,7 +136,7 @@ export function guestStatusMessage(
     `*${site.name}* — reservation update`,
     "",
     `Hi ${name},`,
-    `Code: *${code}*`,
+    `Reservation ID: *${code}*`,
     `Date: ${date} · Guests: ${guests}`,
     "",
     `Status: *${statusLabel(status)}*`,
@@ -163,7 +163,7 @@ function buildEmailBodies(
   const html = `
     <div style="font-family:Georgia,serif;line-height:1.5;color:#2a1f18">
       <h2 style="margin:0 0 12px">New table reservation</h2>
-      <p style="margin:0 0 16px;color:#5c4a3d">Code: <strong>${code}</strong></p>
+      <p style="margin:0 0 16px;color:#5c4a3d">Reservation ID: <strong>${code}</strong></p>
       <table style="border-collapse:collapse;width:100%;max-width:520px">
         ${[
           ["Name", data.name],

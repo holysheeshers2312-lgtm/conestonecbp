@@ -63,3 +63,68 @@ export function isStaffActionStatus(status: string): status is BookingStatus {
     status === "cancelled"
   );
 }
+
+export type AdminStatusFilter =
+  | "needs"
+  | "submitted"
+  | "confirmed"
+  | "waitlist"
+  | "declined"
+  | "cancelled"
+  | "all";
+
+export type AdminSortMode =
+  | "date-asc"
+  | "date-desc"
+  | "newest"
+  | "guests-desc"
+  | "name-asc";
+
+export const ADMIN_STATUS_FILTERS: {
+  id: AdminStatusFilter;
+  label: string;
+}[] = [
+  { id: "all", label: "All" },
+  { id: "confirmed", label: "Confirmed" },
+  { id: "needs", label: "Needs action" },
+  { id: "waitlist", label: "Waitlist" },
+  { id: "declined", label: "Declined" },
+  { id: "cancelled", label: "Cancelled" },
+];
+
+export function statusShortLabel(status: BookingStatus) {
+  switch (status) {
+    case "submitted":
+      return "Needs action";
+    case "confirmed":
+      return "Confirmed";
+    case "waitlist":
+      return "Waitlist";
+    case "declined":
+      return "Declined";
+    case "cancelled":
+      return "Cancelled";
+    case "expired":
+      return "Expired";
+    case "completed":
+      return "Completed";
+    default:
+      return status;
+  }
+}
+
+export function statusBadgeClass(status: BookingStatus) {
+  switch (status) {
+    case "confirmed":
+      return "admin-badge admin-badge--ok";
+    case "waitlist":
+      return "admin-badge admin-badge--wait";
+    case "declined":
+    case "cancelled":
+    case "expired":
+      return "admin-badge admin-badge--bad";
+    case "submitted":
+    default:
+      return "admin-badge admin-badge--new";
+  }
+}

@@ -4,14 +4,25 @@ import {
   isActiveCapacityStatus,
   parseGuestCount,
   softDailyCoverCap,
+  type AdminSortMode,
+  type AdminStatusFilter,
   type BookingStatus,
   type StaffId,
 } from "@/data/booking";
+
+export type { AdminSortMode, AdminStatusFilter };
 import { getDb, isDatabaseConfigured } from "@/lib/db";
 import { reservations, type ReservationRow } from "@/lib/db/schema";
 import { toWhatsAppChatId } from "@/lib/openwa";
 
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+/**
+ * Public Reservation ID format: CS-YYMMDD-NNN
+ * - CS      = ConeStone
+ * - YYMMDD = table date (Asia/Singapore calendar day from the form)
+ * - NNN    = sequence for that date (001, 002, …)
+ * Example: CS-261027-003
+ */
+export const RESERVATION_ID_PREFIX = "CS";
 
 export function isBookingStoreReady() {
   return isDatabaseConfigured();
@@ -21,12 +32,58 @@ export function makeReservationId() {
   return `rsv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function makeBookingCode() {
-  let code = "RSV-";
-  for (let i = 0; i < 4; i += 1) {
-    code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+/** YYYY-MM-DD → YYMMDD */
+export function reservationDateKey(isoDate: string) {
+  const clean = isoDate.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    const now = new Date().toLocaleDateString("en-CA", {
+      timeZone: "Asia/Singapore",
+    });
+    return now.slice(2).replaceAll("-", "");
   }
-  return code;
+  return `${clean.slice(2, 4)}${clean.slice(5, 7)}${clean.slice(8, 10)}`;
+}
+
+export function formatReservationCode(isoDate: string, sequence: number) {
+  const seq = Math.max(1, sequence);
+  return `${RESERVATION_ID_PREFIX}-${reservationDateKey(isoDate)}-${String(seq).padStart(3, "0")}`;
+}
+
+/** Accept typed IDs with spaces / lowercase / missing dashes. */
+export function normalizeReservationCode(raw: string) {
+  const compact = raw.trim().toUpperCase().replace(/[\s_]+/g, "");
+  const matched = compact.match(/^CS-?(\d{6})-?(\d{1,4})$/);
+  if (matched) {
+    return `${RESERVATION_ID_PREFIX}-${matched[1]}-${matched[2].padStart(3, "0")}`;
+  }
+  // Legacy codes (RSV-XXXX) and anything else
+  return compact.replace(/-+/g, "-");
+}
+
+export async function nextReservationSequence(isoDate: string) {
+  const db = getDb();
+  const dayKey = reservationDateKey(isoDate);
+  const prefix = `${RESERVATION_ID_PREFIX}-${dayKey}-`;
+
+  const rows = await db
+    .select({ code: reservations.code })
+    .from(reservations)
+    .where(eq(reservations.date, isoDate));
+
+  let maxSeq = 0;
+  for (const row of rows) {
+    if (!row.code.startsWith(prefix)) continue;
+    const tail = row.code.slice(prefix.length);
+    const n = Number.parseInt(tail, 10);
+    if (Number.isFinite(n) && n > maxSeq) maxSeq = n;
+  }
+
+  return maxSeq + 1;
+}
+
+export async function makeBookingCode(isoDate: string) {
+  const sequence = await nextReservationSequence(isoDate);
+  return formatReservationCode(isoDate, sequence);
 }
 
 export function normalizePhoneDigits(phone: string) {
@@ -110,30 +167,46 @@ export async function insertReservation(input: {
   const capacityFlag = confirmed + guestCount > softDailyCoverCap();
 
   const id = makeReservationId();
-  const code = makeBookingCode();
   const now = new Date();
 
-  const row: typeof reservations.$inferInsert = {
-    id,
-    code,
-    date: input.date,
-    guests: input.guests,
-    guestCount,
-    name: input.name.trim(),
-    phone: input.phone.trim(),
-    phoneDigits,
-    email: input.email.trim().toLowerCase(),
-    notes: input.notes?.trim() || null,
-    status: "submitted",
-    capacityFlag: capacityFlag ? 1 : 0,
-    createdAt: now,
-    updatedAt: now,
-    expiresAt: expiresAtForDate(input.date),
-  };
+  // Retry if two staff/guests collide on the same sequence.
+  let inserted: ReservationRow | undefined;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = await makeBookingCode(input.date);
+    const row: typeof reservations.$inferInsert = {
+      id: attempt === 0 ? id : makeReservationId(),
+      code,
+      date: input.date,
+      guests: input.guests,
+      guestCount,
+      name: input.name.trim(),
+      phone: input.phone.trim(),
+      phoneDigits,
+      email: input.email.trim().toLowerCase(),
+      notes: input.notes?.trim() || null,
+      status: "submitted",
+      capacityFlag: capacityFlag ? 1 : 0,
+      createdAt: now,
+      updatedAt: now,
+      expiresAt: expiresAtForDate(input.date),
+    };
 
-  const inserted = await db.insert(reservations).values(row).returning();
+    try {
+      const result = await db.insert(reservations).values(row).returning();
+      inserted = result[0];
+      break;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/unique|duplicate/i.test(message) || attempt === 4) throw error;
+    }
+  }
+
+  if (!inserted) {
+    throw new Error("Could not allocate a reservation ID.");
+  }
+
   return {
-    row: inserted[0],
+    row: inserted,
     duplicate: false as const,
     capacityFlag,
   };
@@ -141,7 +214,7 @@ export async function insertReservation(input: {
 
 export async function getReservationByCode(code: string) {
   const db = getDb();
-  const normalized = code.trim().toUpperCase();
+  const normalized = normalizeReservationCode(code);
   const rows = await db
     .select()
     .from(reservations)
@@ -189,35 +262,69 @@ export async function lookupReservation(input: {
 }
 
 export async function listReservations(filter: {
-  tab?: "needs" | "upcoming" | "today" | "all";
+  status?: AdminStatusFilter;
+  sort?: AdminSortMode;
+  /** When set, list + counts are scoped to this table date (YYYY-MM-DD). */
+  date?: string;
 }) {
   const db = getDb();
   const today = new Date().toLocaleDateString("en-CA", {
     timeZone: "Asia/Singapore",
   });
 
-  const rows = await db
-    .select()
-    .from(reservations)
-    .orderBy(reservations.date, desc(reservations.createdAt));
+  const allRows = await db.select().from(reservations);
+  const dayRows = filter.date
+    ? allRows.filter((r) => r.date === filter.date)
+    : allRows;
 
-  const tab = filter.tab || "needs";
+  const status = filter.status || "needs";
 
-  if (tab === "all") return rows;
-  if (tab === "today") return rows.filter((r) => r.date === today);
-  if (tab === "upcoming") {
-    return rows.filter(
-      (r) =>
-        r.date >= today &&
-        !["declined", "cancelled", "expired", "completed"].includes(r.status),
-    );
+  let rows = dayRows;
+  if (status === "needs") {
+    rows = dayRows.filter((r) => {
+      const pending = r.status === "submitted" || r.status === "waitlist";
+      if (!pending) return false;
+      // Without a day scope, only upcoming/today needs-action.
+      if (!filter.date) return r.date >= today;
+      return true;
+    });
+  } else if (status !== "all") {
+    rows = dayRows.filter((r) => r.status === status);
   }
-  // needs action
-  return rows.filter(
-    (r) =>
-      r.date >= today &&
-      (r.status === "submitted" || r.status === "waitlist"),
-  );
+
+  const sort = filter.sort || "date-asc";
+  rows = [...rows].sort((a, b) => {
+    switch (sort) {
+      case "date-desc":
+        return b.date.localeCompare(a.date) || b.createdAt.getTime() - a.createdAt.getTime();
+      case "newest":
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      case "guests-desc":
+        return b.guestCount - a.guestCount || a.date.localeCompare(b.date);
+      case "name-asc":
+        return a.name.localeCompare(b.name) || a.date.localeCompare(b.date);
+      case "date-asc":
+      default:
+        return a.date.localeCompare(b.date) || a.createdAt.getTime() - b.createdAt.getTime();
+    }
+  });
+
+  const counts = {
+    needs: dayRows.filter((r) => {
+      const pending = r.status === "submitted" || r.status === "waitlist";
+      if (!pending) return false;
+      if (!filter.date) return r.date >= today;
+      return true;
+    }).length,
+    submitted: dayRows.filter((r) => r.status === "submitted").length,
+    confirmed: dayRows.filter((r) => r.status === "confirmed").length,
+    waitlist: dayRows.filter((r) => r.status === "waitlist").length,
+    declined: dayRows.filter((r) => r.status === "declined").length,
+    cancelled: dayRows.filter((r) => r.status === "cancelled").length,
+    all: dayRows.length,
+  };
+
+  return { rows, counts };
 }
 
 export async function dayCapacity(date: string) {

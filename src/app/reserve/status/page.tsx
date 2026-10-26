@@ -20,8 +20,9 @@ export default function ReserveStatusPage() {
           Reservation status
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-[#5c4a3d]">
-          Enter your booking code, or the mobile number and date you used when
-          requesting a table. Works on any phone or computer.
+          Enter your reservation ID (e.g. CS-261027-003), or the mobile number
+          and date you used when requesting a table. Works on any phone or
+          computer.
         </p>
         <Suspense fallback={<p className="mt-8 text-sm text-[#5c4a3d]">Loading…</p>}>
           <StatusLookup />

@@ -225,7 +225,7 @@ export function Reserve() {
                 <p>{message}</p>
                 {requestId ? (
                   <p className="mt-2 font-mono text-base font-semibold tracking-wide text-ink">
-                    Code: {requestId}
+                    Reservation ID: {requestId}
                   </p>
                 ) : null}
                 {requestId ? (
